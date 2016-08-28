@@ -7,7 +7,7 @@ SaveLocal = 0; % Saves the workspace to a file (For use on a computer not connec
 LoadLocal = 1; % Load from existing file
 
 % Starting and ending time parameters
-tstart = 62.239; tend = 0; timesteps = 8;
+tstart = 62.239 ; tend = 0; timesteps = 8;
 % =========================================================================
 shotnum = 151027024;
 name = [num2str(shotnum) '_workspace'];
@@ -449,7 +449,7 @@ end
 
 figure(8)
 plot(diag(S)/sum(diag(S))*100,'o','LineWidth',3)
-title('Principal Components')
+title('Principal Components [%]')
 
 figure(9)
 ii = 0;
@@ -559,55 +559,10 @@ for kk = 1:3
     title(tit)
 end
 
-% for kk = 5:8
-%     clear Phim omegam y0 u_dmd u_modesm
-% Phim = Phi(:,kk);
-% y0 = Phim\u;
-% omegam = omega(kk);
-%
-% for iter=1:(size(b_th180,2)-1)
-%     u_modesm(:,iter) = (y0.*exp(omegam*dt*(iter-1)));
-% % X_inter(:,t) = diag(exp(omega*dt*(t-1)))*b;
-% end
-% u_dmd = Phim*u_modesm;
-% figure(15)
-% subplot(2,2,kk-4)
-% surf(T(:,1:end-1),Z(:,1:end-1),real(u_dmd))
-% tit = ['Mode ' num2str(kk)];
-% title(tit)
-% end
+% Frequencies of oscillations
 
-%
-% figure(12)
-% plot(diag(S),'.')
-% title('Principal Components')
-%
-% figure(13)
-% ii = 0;
-% for kk = [1 2 5 6]
-%     ii = ii +1;
-% subplot(4,2,kk)
-% plot(Phi1(:,ii))
-% ident = [num2str(ii) ' Spatial Mode'];
-% title(ident)
-% subplot(4,2,kk+2)
-% plot(10^6*time(t_pos_start:t_pos_end),abs(u_modes(ii,:)))
-% ident = [num2str(ii) ' Temporal Mode'];
-% title(ident)
-% end
-% figure(14)
-% for kk = [1 2 5 6]
-%     ii = ii +1;
-% subplot(4,2,kk)
-% plot(Phi1(:,ii))
-% ident = [num2str(ii) ' Spatial Mode'];
-% title(ident)
-% subplot(4,2,kk+2)
-% plot(10^6*time(t_pos_start:t_pos_end),abs(u_modes(ii,:)))
-% ident = [num2str(ii) ' Temporal Mode'];
-% title(ident)
-% end
-%
-% figure(15)
-% surf(abs(real(u_move) - b_th180))
-% toc
+f = imag(omega(2))/(2*pi); % [Hz]
+
+
+
+
