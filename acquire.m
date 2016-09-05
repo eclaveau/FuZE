@@ -1,4 +1,4 @@
-function [time,data] = acquire(shotnum)
+function [time,data,node_string] = acquire(shotnum)
 
 % Acquire the data from MDS plus
 
@@ -15,7 +15,7 @@ function [time,data] = acquire(shotnum)
         '\b_p15_45_t     '
         '\b_p15_90_t     '
         '\b_p15_135_t    '
-        '\b_p15_180_t    '
+        '\b_p15_180_t    ' % i = 14
         %     '\b_p15_225_t    '
         '\b_p15_270_t    '
         '\b_p15_315_t    '
@@ -23,7 +23,7 @@ function [time,data] = acquire(shotnum)
         '\b_p30_45_t     '
         '\b_p30_90_t     '
         '\b_p30_135_t    '
-        '\b_p30_180_t    '
+        '\b_p30_180_t    ' % i = 21
         '\b_p30_225_t    '
         '\b_p30_270_t    '
         '\b_p30_315_t    '
@@ -31,13 +31,13 @@ function [time,data] = acquire(shotnum)
         '\b_p45_45_t     '
         '\b_p45_90_t     '
         '\b_p45_135_t    '
-        '\b_p45_180_t    '
+        '\b_p45_180_t    ' % i = 29
         '\b_p45_225_t    '
         '\b_p45_270_t    '
         '\b_p45_315_t    '
         '\b_p5_0_t       ' % i = 33
         '\b_p5_90_t      '
-        '\b_p5_180_t     '
+        '\b_p5_180_t     ' % i = 35
         '\b_p5_270_t     '
         '\b_p10_0_t      ' % i = 37
         '\b_p10_90_t     '
@@ -45,19 +45,19 @@ function [time,data] = acquire(shotnum)
         '\b_p10_270_t    '
         '\b_p20_0_t      ' % i = 40
         '\b_p20_90_t     '
-        '\b_p20_180_t    '
+        '\b_p20_180_t    ' % i = 42
         '\b_p20_270_t    '
         '\b_p25_0_t      ' % i = 44
         '\b_p25_90_t     '
-        '\b_p25_180_t    '
+        '\b_p25_180_t    ' % i = 46
         '\b_p25_270_t    '
         '\b_p35_0_t      ' % i = 48
         '\b_p35_90_t     '
-        '\b_p35_180_t    '
+        '\b_p35_180_t    ' % i = 50
         '\b_p35_270_t    '
         '\b_p40_0_t      ' % i = 52
         '\b_p40_90_t     '
-        '\b_p40_180_t    '
+        '\b_p40_180_t    ' % i = 54
         '\b_p40_270_t    '
         '\m_0_p0         ' % i = 56
         '\m_0_p5         '

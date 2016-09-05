@@ -12,14 +12,14 @@ tstart = 62.239 ; tend = 0; timesteps = 8;
 shotnum = 151027024;
 name = [num2str(shotnum) '_workspace'];
 if LoadLocal == 0
-    [time,data] = acquire(shotnum);
-    if SaveLocal == 1
-        save(name); % Save workspace to a local file
-    end
+    [time,data,node_string] = acquire(shotnum);
 else
     load(name)
 end
 
+if SaveLocal == 1
+    save(name); % Save workspace to a local file
+end
 Contour = 0;
 M1y = 0;
 m1m0 = 0; % Generate animation for m1m0
@@ -445,60 +445,41 @@ end
 % =========================================================================
 % Principal Component Analysis with SVD only
 % =========================================================================
-[U,S,V] = svd(b_th180,'econ');
-
-figure(8)
-plot(diag(S)/sum(diag(S))*100,'o','LineWidth',3)
-title('Principal Components [%]')
-
-figure(9)
-ii = 0;
-for kk = [1 2 5 6]
-    ii = ii +1;
-    subplot(4,2,kk)
-    plot(U(:,ii))
-    ident = [num2str(ii) ' Spatial Mode'];
-    title(ident)
-    subplot(4,2,kk+2)
-    plot(10^6*time(t_pos_start:t_pos_end),abs(V(:,ii)))
-    ident = [num2str(ii) ' Temporal Mode'];
-    title(ident)
-end
-% figure(10)
+% [U,S,V] = svd(b_th180,'econ');
+% 
+% figure(8)
+% plot(diag(S)/sum(diag(S))*100,'o','LineWidth',3)
+% title('Principal Components [%]')
+% 
+% figure(9)
+% ii = 0;
 % for kk = [1 2 5 6]
 %     ii = ii +1;
-% subplot(4,2,kk)
-% plot(U(:,ii))
-% ident = [num2str(ii) ' Spatial Mode'];
-% title(ident)
-% subplot(4,2,kk+2)
-% plot(10^6*time(t_pos_start:t_pos_end),abs(V(:,ii)))
-% ident = [num2str(ii) ' Temporal Mode'];
-% title(ident)
+%     subplot(4,2,kk)
+%     plot(U(:,ii))
+%     ident = [num2str(ii) ' Spatial Mode'];
+%     title(ident)
+%     subplot(4,2,kk+2)
+%     plot(10^6*time(t_pos_start:t_pos_end),abs(V(:,ii)))
+%     ident = [num2str(ii) ' Temporal Mode'];
+%     title(ident)
 % end
-
-% Representation of data in space time for one probe
+% 
+% % Representation of data in space time for one probe
 [T,Z] = meshgrid(10^6*time(t_pos_start:t_pos_end),z0(2:end));
-figure(7)
-surf(T,Z,b_th180)
-xlabel('t')
-ylabel('x')
-title('Probe data')
-
-%    figure(7)
-%    axis([5 45 0 0.40])
-% for ii = 1:size(b_th180,2)
-%  pause
-%     plot(z0(2:end),b_th180(:,ii))
-%     axis([5 45 0 0.40])
-% end
+% figure(7)
+% surf(T,Z,b_th180)
+% xlabel('t')
+% ylabel('x')
+% title('Probe data')
 
 % =========================================================================
 % Dynamic Mode Decomposition Part (DMD)
 % =========================================================================
 clear u_modes u_dmd
-dt = time(2) - time(1);
-
+dt = 0.05;
+b_untrans = b_th180;
+% b_th180 = b_th180';
 X1 = b_th180(:,1:end-1);
 X2 = b_th180(:,2:end);
 
@@ -523,7 +504,7 @@ u_dmd = Phi*u_modes;
 % X_DMD = Phi*X_inter;
 
 figure(11)
-surf(T(:,1:end),Z(:,1:end),real(u_dmd))
+surf(T',Z',real(u_dmd))
 xlabel('t')
 ylabel('x')
 title('DMD generated data')
@@ -562,6 +543,138 @@ end
 % Frequencies of oscillations
 
 f = imag(omega(2))/(2*pi); % [Hz]
+
+%%
+% =========================================================================
+% Information over the whole shot
+% =========================================================================
+clear b_th0
+
+% b_th180 = [data{35} 0.5*data{35} + 0.5*data{14} data{14} data{42} data{46} data{21} data{50} data{54} data{29}];
+node2 = cellstr(node_string); % Put the character array Node_string into a cell array
+
+% Probe data at 180 degree location for all z
+kk = 0;
+b_th180 = zeros(length(time),8);
+for zp = 5:5:45
+    kk = kk+1;
+    if zp == 10 % Broken probes at this location
+        b_th180(:,kk) = zeros(length(time),1);
+    else
+        str = ['\b_p' num2str(zp) '_180_t']; % Name of probe for axial pos
+        d = data{~cellfun('isempty', strfind(node2,str))};
+        b_th180(:,kk) = data{~cellfun('isempty', strfind(node2,str))};
+    end
+end
+b_th180(:,2) = 0.5*b_th180(:,1) + 0.5*b_th180(:,3); % Broken probe
+
+k = 1;
+for ii = 1:floor(length(time)-9)
+    bb = b_th180(k:k+8,:);% window of data
+    
+    X1 = bb(:,1:end-1);
+    X2 = bb(:,2:end);
+    
+    [U, Sigma, V] = svd(X1, 'econ');
+    U = U(:,1:3);
+    V = V(:,1:3);
+    Sigma = Sigma(1:3,1:3);
+    S = U'*X2*V*diag(1./diag(Sigma));
+    [eV,D] = eig(S);
+    mu = diag(D);
+    omega = log(mu)/dt;
+    Phi = U*eV;
+    
+    u = bb(:,1);
+    y0 = Phi\u;
+    
+    for iter=1:(size(bb,2))
+        u_modes(:,iter) = (y0.*exp(omega*dt*(iter-1)));
+        % X_inter(:,t) = diag(exp(omega*dt*(t-1)))*b;
+    end
+    u_dmd = Phi*u_modes;
+    
+    f(ii) = abs(imag(omega(2))/(2*pi)); % Frequency of oscillation
+    I(ii) = abs(real(omega(2))); % Intensity of oscillation?
+    k = k+1;
+end
+figure(15)
+plot(f)
+title('frequency of oscillation')
+
+figure(16)
+plot(I)
+title('Intensity of oscillation')
+
+figure(17)
+plot(I.*f)
+
+% =========================================================================
+% WAVELENGTH ANALYSIS
+k = 1;
+for ii = 1:floor(length(time)-9)
+    bb = b_th180(k:k+8,:);% window of data
+    bb = bb';
+    
+    X1 = bb(:,1:end-1);
+    X2 = bb(:,2:end);
+    
+    [U, Sigma, V] = svd(X1, 'econ');
+    U = U(:,1:3);
+    V = V(:,1:3);
+    Sigma = Sigma(1:3,1:3);
+    S = U'*X2*V*diag(1./diag(Sigma));
+    [eV,D] = eig(S);
+    mu = diag(D);
+    omega = log(mu)/dt;
+    Phi = U*eV;
+    
+    u = bb(:,1);
+    y0 = Phi\u;
+    
+    for iter=1:(size(bb,2))
+        u_modes(:,iter) = (y0.*exp(omega*dt*(iter-1)));
+        % X_inter(:,t) = diag(exp(omega*dt*(t-1)))*b;
+    end
+    u_dmd = Phi*u_modes;
+    
+    f(ii) = abs(imag(omega(2))/(2*pi)); % wavenumber of oscillation
+    I(ii) = abs(real(omega(2))); % Intensity of oscillation?
+    k = k+1;
+end
+figure(18)
+subplot(2,1,1)
+plot(time(vis_start:vis_end)*1e6,f(vis_start:vis_end))
+title('WAVENUMBER of oscillation')
+axis([-inf inf -inf 5e6])
+hold off
+subplot(2,1,2)
+% m1 data
+m1_mean = data{106}(vis_start:vis_end);
+m1_sig = data{107}(vis_start:vis_end);
+plot(time(vis_start:vis_end)*1e6,m1_mean,'k','LineWidth',2);
+hold on
+plot(time(vis_start:vis_end)*1e6, m1_mean+m1_sig,'r');
+plot(time(vis_start:vis_end)*1e6, 0.2*ones(length(time(vis_start:vis_end)),1),'k')
+timecursor_m1m0 = plot(NaN,NaN);
+xlabel('Time [\mus]')
+ylabel('B_1/B_0')
+pos = get(gca, 'Position');
+pos(1) = pos(1);
+pos(2) = ymargin*pos(2);
+set(gca, 'Position', pos)
+axis([-inf inf -inf 0.5])
+ax = gca;
+set(ax,'YTick',[0,0.2,0.4]);
+hold off
+
+figure(19)
+plot(time(vis_start:vis_end)*1e6,I(vis_start:vis_end))
+title('Intensity of oscillation')
+
+figure(20)
+plot(I.*f)
+
 
 
 
