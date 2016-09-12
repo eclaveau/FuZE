@@ -5,9 +5,6 @@ clc; clear all;
 % Part of the program you want to run
 SaveLocal = 0; % Saves the workspace to a file (For use on a computer not connected to MDSplus)
 LoadLocal = 1; % Load from existing file
-
-% Starting and ending time parameters
-tstart = 62.239 ; tend = 0; timesteps = 8;
 % =========================================================================
 shotnum = 151027024;
 name = [num2str(shotnum) '_workspace'];
@@ -20,6 +17,8 @@ end
 if SaveLocal == 1
     save(name); % Save workspace to a local file
 end
+% Starting and ending time parameters  62.239
+tstart = 62.239; tend = 0; timesteps = 8;
 Contour = 0;
 M1y = 0;
 m1m0 = 0; % Generate animation for m1m0
@@ -445,10 +444,39 @@ end
 % =========================================================================
 % Principal Component Analysis with SVD only
 % =========================================================================
-[U,S,V] = svd(b_th180,'econ');
+% [U,S,V] = svd(b_th180,'econ');
+
+% % Representation of data in space time for one probe
+[T,Z] = meshgrid(10^6*time(t_pos_start:t_pos_end),z0(2:end));
+% figure(7)
+% surf(T,Z,b_th180)
+% xlabel('t')
+% ylabel('x')
+% title('Probe data')
+
+% =========================================================================
+% Dynamic Mode Decomposition Part (DMD)
+% =========================================================================
+clear u_modes u_dmd
+% dt = time(2)-time(1);
+
+rank = 8;
+b_untrans = b_th180;
+b_th180_T = b_th180';
+
+% Three modes svd reconstruction
+[Ut, Sigmat, Vt] = svd(b_th180_T, 'econ');
+figure(7)
+subplot(1,2,1)
+surf(Ut(:,1:3)*Sigmat(1:3,1:3)*Vt(:,1:3)')
+title('USV reconstruction with 3 first modes')
+subplot(1,2,2)
+surf(Ut(:,1:3)*Sigmat(1:3,1:3)*Vt(:,1:3)'-b_th180_T)
+title('Error between data and 3 modes reconstructions')
+err_svd = mean(mean(abs(Ut(:,1:3)*Sigmat(1:3,1:3)*Vt(:,1:3)'-b_th180_T)));
 
 figure(8)
-plot(diag(S)/sum(diag(S))*100,'o','LineWidth',3)
+plot(diag(Sigmat)/sum(diag(Sigmat))*100,'.','LineWidth',3)
 title('Principal Components [%]')
 
 figure(9)
@@ -456,52 +484,42 @@ ii = 0;
 for kk = [1 2 5 6]
     ii = ii +1;
     subplot(4,2,kk)
-    plot(U(:,ii))
+    plot(Ut(:,ii))
     ident = [num2str(ii) ' Spatial Mode'];
     title(ident)
     subplot(4,2,kk+2)
-    plot(10^6*time(t_pos_start:t_pos_end),abs(V(:,ii)))
+    plot(10^6*time(t_pos_start:t_pos_end),abs(Vt(:,ii)))
     ident = [num2str(ii) ' Temporal Mode'];
     title(ident)
 end
 
-% Representation of data in space time for one probe
-[T,Z] = meshgrid(10^6*time(t_pos_start:t_pos_end),z0(2:end));
-figure(7)
-surf(T,Z,b_th180)
-xlabel('t')
-ylabel('x')
-title('Probe data')
+X1 = b_th180_T(:,1:end-1);
+X2 = b_th180_T(:,2:end);
+u = b_th180_T(:,1);
+dt = 1;
+t = 0:9;
 
-% =========================================================================
-% Dynamic Mode Decomposition Part (DMD)
-% =========================================================================
-clear u_modes u_dmd
-dt = 5;
-b_untrans = b_th180;
-% b_th180 = b_th180';
-X1 = b_th180(:,1:end-1);
-X2 = b_th180(:,2:end);
-
-[U, Sigma, V] = svd(X1, 'econ');
-U = U(:,1:3);
-V = V(:,1:3);
-Sigma = Sigma(1:3,1:3);
+[U1, Sigma1, V1] = svd(X1, 'econ');
+U = U1(:,1:rank);
+V = V1(:,1:rank);
+Sigma = Sigma1(1:rank,1:rank);
 S = U'*X2*V*diag(1./diag(Sigma));
 [eV,D] = eig(S);
 mu = diag(D);
 omega = log(mu)/dt;
 Phi = U*eV;
 
-u = b_th180(:,1);
+
 y0 = Phi\u;
 
-for iter=1:(size(b_th180,2))
-    u_modes(:,iter) = (y0.*exp(omega*dt*(iter-1)));
-    % X_inter(:,t) = diag(exp(omega*dt*(t-1)))*b;
+for iter=1:(size(b_th180_T,2))
+    u_modes(:,iter) = (y0.*exp(omega*t(iter)));
+
 end
 u_dmd = Phi*u_modes;
+err_dmd = mean(mean(abs(real(u_dmd)-b_th180_T)));
 % X_DMD = Phi*X_inter;
+rel_err_dmd = err_dmd/err_svd;
 
 figure(11)
 surf(T',Z',real(u_dmd))
@@ -509,7 +527,7 @@ xlabel('t')
 ylabel('x')
 title('DMD generated data')
 figure(12)
-surf(T(:,1:end),Z(:,1:end),real(u_dmd)-b_th180(:,1:end))
+surf(T(:,1:end),Z(:,1:end),real(u_dmd)-b_th180_T(:,1:end))
 xlabel('t')
 ylabel('x')
 title('Error')
@@ -528,7 +546,7 @@ for kk = 1:3
     y0 = Phim\u;
     omegam = omega(kk);
     
-    for iter=1:(size(b_th180,2)-1)
+    for iter=1:(size(b_th180_T,2)-1)
         u_modesm(:,iter) = (y0.*exp(omegam*dt*(iter-1)));
         % X_inter(:,t) = diag(exp(omega*dt*(t-1)))*b;
     end
@@ -567,10 +585,11 @@ for zp = 5:5:45
     end
 end
 b_th180(:,2) = 0.5*b_th180(:,1) + 0.5*b_th180(:,3); % Broken probe
-
+b_th180 = b_th180' % So that rows are measurements and columns are time steps
+% Moving window of data
 k = 1;
 for ii = 1:floor(length(time)-9)
-    bb = b_th180(k:k+8,:);% window of data
+    bb = b_th180(:,k:k+8);% window of data
     
     X1 = bb(:,1:end-1);
     X2 = bb(:,2:end);
@@ -594,13 +613,39 @@ for ii = 1:floor(length(time)-9)
     end
     u_dmd = Phi*u_modes;
     
+    % Error tracking between the 3 modes svd and dmd
+    err_dmd(ii) = mean(mean(abs(real(u_dmd)-bb)));
+    [Ut,St,Vt] = svd(bb,'econ');
+    err_svd(ii) = mean(mean(abs(Ut(:,1:3)*St(1:3,1:3)*Vt(:,1:3)'-bb)));
     f(ii) = abs(imag(omega(2))/(2*pi)); % Frequency of oscillation
-    I(ii) = abs(real(omega(2))); % Intensity of oscillation?
+    I(ii) = real(omega(2)); % Intensity of oscillation?
     k = k+1;
 end
 figure(15)
-plot(f)
-title('frequency of oscillation')
+subplot(2,1,1)
+plot(time(vis_start:vis_end)*1e6,f(vis_start:vis_end))
+title('FREQUENCY of oscillation')
+axis([-inf inf -inf 5e6])
+hold off
+subplot(2,1,2)
+% m1 data
+m1_mean = data{106}(vis_start:vis_end);
+m1_sig = data{107}(vis_start:vis_end);
+plot(time(vis_start:vis_end)*1e6,m1_mean,'k','LineWidth',2);
+hold on
+plot(time(vis_start:vis_end)*1e6, m1_mean+m1_sig,'r');
+plot(time(vis_start:vis_end)*1e6, 0.2*ones(length(time(vis_start:vis_end)),1),'k')
+timecursor_m1m0 = plot(NaN,NaN);
+xlabel('Time [\mus]')
+ylabel('B_1/B_0')
+pos = get(gca, 'Position');
+pos(1) = pos(1);
+pos(2) = ymargin*pos(2);
+set(gca, 'Position', pos)
+axis([-inf inf -inf 0.5])
+ax = gca;
+set(ax,'YTick',[0,0.2,0.4]);
+hold off
 
 figure(16)
 plot(I)
@@ -609,11 +654,16 @@ title('Intensity of oscillation')
 figure(17)
 plot(I.*f)
 
+figure(20)
+plot(time(vis_start:vis_end)*1e6,err_dmd(vis_start:vis_end)./err_svd(vis_start:vis_end))
+title('err dmd./err svd')
+xlabel('time [us]')
+axis([-inf inf 1 10])
 % =========================================================================
 % WAVELENGTH ANALYSIS
 k = 1;
 for ii = 1:floor(length(time)-9)
-    bb = b_th180(k:k+8,:);% window of data
+    bb = b_th180(:,k:k+8);% window of data
     bb = bb';
     
     X1 = bb(:,1:end-1);
@@ -639,7 +689,7 @@ for ii = 1:floor(length(time)-9)
     u_dmd = Phi*u_modes;
     
     f(ii) = abs(imag(omega(2))/(2*pi)); % wavenumber of oscillation
-    I(ii) = abs(real(omega(2))); % Intensity of oscillation?
+    I(ii) = real(omega(2)); % Intensity of oscillation?
     k = k+1;
 end
 figure(18)
