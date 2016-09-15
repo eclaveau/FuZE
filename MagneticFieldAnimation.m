@@ -37,16 +37,15 @@ end
 % Definition of the data
 % ======================================================================
 
-% Angle and axial position at which the probe are placed
+% Angle and axial position at which the probes are placed
 theta = [0,pi/4,pi/2,3*pi/4,pi,5/4*pi,3/2*pi,7/4*pi,0];
-zp0 = [0, 0, 0, 0, 0, 0, 0, 0 ,0]; % Position of the probe on the z axis
+zp0 = [0, 0, 0, 0, 0, 0, 0, 0 ,0]; % Position of the probes on the z axis
 z0 = [0 5 10 15 20 25 30 35 40 45];
-ppp=figure('units','normalized','outerposition',[0 0 1 1]); %,'visible','off'
-
+% ppp=figure('units','normalized','outerposition',[0 0 1 1]); %,'visible','off'
+ppp = main_animation();
 % Display Properties
 ymargin = 1.05;
 fontsize = 10;
-% Title (time stamp)
 subplot(16,8,[1 8])
 htitle = title('time');
 set(htitle,'FontSize',fontsize);
@@ -460,7 +459,7 @@ end
 clear u_modes u_dmd
 % dt = time(2)-time(1);
 
-rank = 3;
+rank = 8;
 b_untrans = b_th180;
 b_th180_T = b_th180';
 
@@ -493,28 +492,71 @@ for kk = [1 2 5 6]
     title(ident)
 end
 
-X1 = b_th180_T(:,1:end-1);
-X2 = b_th180_T(:,2:end);
-u = b_th180_T(:,1);
-dt = 1;
-t = 0:9;
+% X1 = b_th180_T(:,1:end-1);
+% X2 = b_th180_T(:,2:end);
+% u = b_th180_T(:,1);
+% dt = 1;
+% t = 0:9;
+% 
+% [U1, Sigma1, V1] = svd(X1, 'econ');
+% U = U1(:,1:rank);
+% V = V1(:,1:rank);
+% Sigma = Sigma1(1:rank,1:rank);
+% S = U'*X2*V*diag(1./diag(Sigma));
+% [eV,D] = eig(S);
+% mu = diag(D);
+% omega = log(mu)/dt;
+% Phi = U*eV;
+% y0 = Phi\u;
+% 
+% for iter=1:(size(b_th180_T,2))-1
+%     u_modes(:,iter) = (y0.*exp(omega*t(iter)));
+% 
+% end
+%&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+%&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+  data = b_th180_T;
+  r = rank;
+  t = linspace(0,9,9);
+  fs = 0;
+  
+  x = data(:, 1:end-1);
+  y = data(:, 2:end);
+  first_frame = data(:, 1);
 
-[U1, Sigma1, V1] = svd(X1, 'econ');
-U = U1(:,1:rank);
-V = V1(:,1:rank);
-Sigma = Sigma1(1:rank,1:rank);
-S = U'*X2*V*diag(1./diag(Sigma));
-[eV,D] = eig(S);
-mu = diag(D);
-omega = log(mu)/dt;
-Phi = U*eV;
-y0 = Phi\u;
+  % finalize our timebase
+  dt = mean(diff(t));
+  tfinal = t(end) + dt*fs;
+  time = [t(1):dt:tfinal];
 
-for iter=1:(size(b_th180_T,2))-1
-    u_modes(:,iter) = (y0.*exp(omega*t(iter)));
+  % truncated SVD
+  [U1, S1, V1] = svd(x, 'econ');
 
-end
-u_dmd = Phi*u_modes;
+  if isempty(r)==1
+    U = U1;
+    V = V1;
+    S = S1;
+  else
+    U = U1(:, 1:r);
+    V = V1(:, 1:r);
+    S = S1(1:r, 1:r);
+  end
+
+  % linear map s.t. y = Ax
+  Atilde = U'*y*V*diag(1./diag(S));
+  [eV, D] = eig(Atilde); mu = diag(D); omg = log(mu)/dt;
+  mud = U*eV; y0 = mud\first_frame;
+
+  % compute modes
+  for iterate = 2:length(time)-1
+    kip(:, iterate) = (y0.*exp(omg*time(iterate)));
+  end
+
+  sig = diag(S);
+%&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+%&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+% u_dmd = Phi*u_modes;
+u_dmd = mud*kip;
 % err_dmd = mean(mean(abs(real(u_dmd)-b_th180_T)));
 % X_DMD = Phi*X_inter;
 % rel_err_dmd = err_dmd/err_svd;
