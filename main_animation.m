@@ -1,4 +1,4 @@
-function [b_th180, t_pos_start, t_pos_end, z0] = main_animation(vis_start, vis_end, shotnum, time, data, tstart, tend, timesteps)
+function [m1, phi, m0, b_th180, t_pos_start, t_pos_end, z0] = main_animation(vis_start, vis_end, shotnum, time, data, tstart, tend, timesteps)
 
 % % =========================================================================
 % % save video
@@ -204,15 +204,15 @@ for t = t_pos
     % m1 data from MDSplus
     i = 66;
     m1MDS = [data{i}(t),data{i+1}(t),data{i+2}(t),data{i+3}(t),data{i+4}(t),data{i+5}(t),data{i+6}(t),data{i+7}(t),data{i+8}(t), data{i+9}(t)];
-    
+    m1(k,:) = m1MDS;
     % Phase data for m1
     i = 76;
     phiMDS = [data{i}(t),data{i+1}(t),data{i+2}(t),data{i+3}(t),data{i+4}(t),data{i+5}(t),data{i+6}(t),data{i+7}(t),data{i+8}(t),data{i+9}(t)];
-    
+    phi(k,:) = phiMDS;
     % m0 data from MDSplus
     i = 56;
     m0MDS = [data{i}(t),data{i+1}(t),data{i+2}(t),data{i+3}(t),data{i+4}(t),data{i+5}(t),data{i+6}(t),data{i+7}(t),data{i+8}(t), data{i+9}(t)];
-    
+    m0(k,:) = m0MDS;
     % Defining the 'Z' values (In our case, the magnetic field at each theta
     % position) for the contour plot (matrix representing each
     % intersection of theta and axial position). The data doesn't use the last
@@ -348,6 +348,9 @@ for t = t_pos
     %     subplot(2,1,2)
     %     plot(kfs, abs(fftshift(fs))')
     %     title('Frequency in space @ \theta = 0')
+    
+    
+
 end
 % if savevideo==1
 %     close(video)

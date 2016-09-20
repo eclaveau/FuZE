@@ -24,9 +24,9 @@ end
 % ======================================================================
 
 % Starting and ending time parameters  62.239 for the animation
-tstart = 62.239; tend = 0; timesteps = 8;
+tstart = 50.239; tend = 0; timesteps = 8;
 % Time range of display for I_P and m1/m0
-vis_start = find(data{1}>(max(data{1})/5),1,'first'); % Where to current first reach 10% of max current
+vis_start = find(data{1}>(max(data{1})/1.9),1,'first'); % Where to current first reach 10% of max current
 vis_end = find(data{1}>(max(data{1})/5),1,'last'); % Where the current last reach 10% of max current
 
 % Animation of magnetic field
@@ -49,9 +49,9 @@ vis_end = find(data{1}>(max(data{1})/5),1,'last'); % Where the current last reac
 % =========================================================================
 % Dynamic Mode Decomposition Part (DMD)
 % =========================================================================
-% dt = time(2)-time(1);
+dt = time(2)-time(1);
 
-rank = 8;
+rank = 2;
 b_untrans = b_th180;
 b_th180_T = round(1e4*b_th180')/(1e4);
 
@@ -87,8 +87,8 @@ end
 X1 = b_th180_T(:,1:end-1);
 X2 = b_th180_T(:,2:end);
 u = b_th180_T(:,1);
-dt = 1;
-t = 0:9;
+% dt = 1;
+% t = 0:9;
 
 [U1, Sigma1, V1] = svd(X1, 'econ');
 U = U1(:,1:rank);
@@ -102,7 +102,7 @@ Phi = U*eV;
 y0 = Phi\u;
 
 for iter=1:(size(b_th180_T,2)-1)
-    u_modes(:,iter) = (y0.*exp(omega*t(iter)));
+    u_modes(:,iter) = (y0.*exp(omega*dt*(iter-1)));
 
 end
 %&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -155,8 +155,8 @@ u_dmd = Phi*u_modes;
 
 figure(11)
 surf(real(u_dmd))
-xlabel('t')
-ylabel('x')
+ylabel('t')
+xlabel('x')
 title('DMD generated data')
 
 figure(12)
@@ -174,7 +174,7 @@ plot(real(omega),'ok','LineWidth',3)
 title('Real part of omega')
 
 figure(14)
-for kk = 1:8
+for kk = 1:rank
     clear Phim omegam y0 u_dmd u_modesm
     Phim = Phi(:,kk);
     y0 = Phim\u;
@@ -200,7 +200,7 @@ f = imag(omega(2))/(2*pi); % [Hz]
 % =========================================================================
 % Information over the whole shot
 % =========================================================================
-clear b_th0
+clear b_th0 u_modes
 
 % b_th180 = [data{35} 0.5*data{35} + 0.5*data{14} data{14} data{42} data{46} data{21} data{50} data{54} data{29}];
 node2 = cellstr(node_string); % Put the character array Node_string into a cell array
@@ -219,19 +219,21 @@ for zp = 5:5:45
     end
 end
 b_th180(:,2) = 0.5*b_th180(:,1) + 0.5*b_th180(:,3); % Broken probe
-b_th180 = b_th180' % So that rows are measurements and columns are time steps
+b_th180 = b_th180'; % So that rows are measurements and columns are time steps
+b_th180 = round(1e4*b_th180)/(1e4); % Remove the rounding error instability
+
 % Moving window of data
-k = 1;
-for ii = 1:floor(length(time)-9)
+k = vis_start;
+for ii = 1:vis_end-vis_start
     bb = b_th180(:,k:k+8);% window of data
     
     X1 = bb(:,1:end-1);
     X2 = bb(:,2:end);
     
     [U, Sigma, V] = svd(X1, 'econ');
-    U = U(:,1:3);
-    V = V(:,1:3);
-    Sigma = Sigma(1:3,1:3);
+    U = U(:,1:rank);
+    V = V(:,1:rank);
+    Sigma = Sigma(1:rank,1:rank);
     S = U'*X2*V*diag(1./diag(Sigma));
     [eV,D] = eig(S);
     mu = diag(D);
@@ -241,23 +243,23 @@ for ii = 1:floor(length(time)-9)
     u = bb(:,1);
     y0 = Phi\u;
     
-    for iter=1:(size(bb,2))
+    for iter=1:(size(bb,2))-1
         u_modes(:,iter) = (y0.*exp(omega*dt*(iter-1)));
-        % X_inter(:,t) = diag(exp(omega*dt*(t-1)))*b;
+
     end
     u_dmd = Phi*u_modes;
     
     % Error tracking between the 3 modes svd and dmd
-    err_dmd(ii) = mean(mean(abs(real(u_dmd)-bb)));
-    [Ut,St,Vt] = svd(bb,'econ');
-    err_svd(ii) = mean(mean(abs(Ut(:,1:3)*St(1:3,1:3)*Vt(:,1:3)'-bb)));
+    err_dmd(ii) = mean(mean(abs(real(u_dmd)-bb(:,1:end-1))));
+%     [Ut,St,Vt] = svd(bb,'econ');
+%     err_svd(ii) = mean(mean(abs(Ut(:,1:3)*St(1:3,1:3)*Vt(:,1:3)'-bb)));
     f(ii) = abs(imag(omega(2))/(2*pi)); % Frequency of oscillation
     I(ii) = real(omega(2)); % Intensity of oscillation?
     k = k+1;
 end
 figure(15)
 subplot(2,1,1)
-plot(time(vis_start:vis_end)*1e6,f(vis_start:vis_end))
+plot(time(vis_start:vis_end-1)*1e6,f)
 title('FREQUENCY of oscillation')
 axis([-inf inf -inf 5e6])
 hold off
@@ -272,10 +274,10 @@ plot(time(vis_start:vis_end)*1e6, 0.2*ones(length(time(vis_start:vis_end)),1),'k
 timecursor_m1m0 = plot(NaN,NaN);
 xlabel('Time [\mus]')
 ylabel('B_1/B_0')
-pos = get(gca, 'Position');
-pos(1) = pos(1);
-pos(2) = ymargin*pos(2);
-set(gca, 'Position', pos)
+% pos = get(gca, 'Position');
+% % pos(1) = pos(1);
+% % pos(2) = ymargin*pos(2);
+% set(gca, 'Position', pos)
 axis([-inf inf -inf 0.5])
 ax = gca;
 set(ax,'YTick',[0,0.2,0.4]);
@@ -289,24 +291,23 @@ figure(17)
 plot(I.*f)
 
 figure(20)
-plot(time(vis_start:vis_end)*1e6,err_dmd(vis_start:vis_end)./err_svd(vis_start:vis_end))
-title('err dmd./err svd')
+plot(time(vis_start:vis_end-1)*1e6,err_dmd)
+title('err dmd')
 xlabel('time [us]')
-axis([-inf inf 1 10])
+axis([-inf inf 0 0.00001])
 % =========================================================================
 % WAVELENGTH ANALYSIS
-k = 1;
-for ii = 1:floor(length(time)-9)
-    bb = b_th180(:,k:k+8);% window of data
-    bb = bb';
+k = vis_start;
+for ii = 1:vis_end-vis_start
+    bb = b_th180(:,k:k+8)';% window of data
     
     X1 = bb(:,1:end-1);
     X2 = bb(:,2:end);
     
     [U, Sigma, V] = svd(X1, 'econ');
-    U = U(:,1:3);
-    V = V(:,1:3);
-    Sigma = Sigma(1:3,1:3);
+    U = U(:,1:rank);
+    V = V(:,1:rank);
+    Sigma = Sigma(1:rank,1:rank);
     S = U'*X2*V*diag(1./diag(Sigma));
     [eV,D] = eig(S);
     mu = diag(D);
@@ -316,20 +317,24 @@ for ii = 1:floor(length(time)-9)
     u = bb(:,1);
     y0 = Phi\u;
     
-    for iter=1:(size(bb,2))
+    for iter=1:(size(bb,2))-1
         u_modes(:,iter) = (y0.*exp(omega*dt*(iter-1)));
-        % X_inter(:,t) = diag(exp(omega*dt*(t-1)))*b;
+
     end
     u_dmd = Phi*u_modes;
     
-    f(ii) = abs(imag(omega(2))/(2*pi)); % wavenumber of oscillation
+    % Error tracking between the 3 modes svd and dmd
+    err_dmd(ii) = mean(mean(abs(real(u_dmd)-bb(:,1:end-1))));
+%     [Ut,St,Vt] = svd(bb,'econ');
+%     err_svd(ii) = mean(mean(abs(Ut(:,1:3)*St(1:3,1:3)*Vt(:,1:3)'-bb)));
+    f(ii) = abs(imag(omega(2))/(2*pi)); % Frequency of oscillation
     I(ii) = real(omega(2)); % Intensity of oscillation?
     k = k+1;
 end
-figure(18)
+figure(21)
 subplot(2,1,1)
-plot(time(vis_start:vis_end)*1e6,f(vis_start:vis_end))
-title('WAVENUMBER of oscillation')
+plot(time(vis_start:vis_end-1)*1e6,f)
+title('FREQUENCY of oscillation')
 axis([-inf inf -inf 5e6])
 hold off
 subplot(2,1,2)
@@ -343,23 +348,23 @@ plot(time(vis_start:vis_end)*1e6, 0.2*ones(length(time(vis_start:vis_end)),1),'k
 timecursor_m1m0 = plot(NaN,NaN);
 xlabel('Time [\mus]')
 ylabel('B_1/B_0')
-pos = get(gca, 'Position');
-pos(1) = pos(1);
-pos(2) = ymargin*pos(2);
-set(gca, 'Position', pos)
+% pos = get(gca, 'Position');
+% % pos(1) = pos(1);
+% % pos(2) = ymargin*pos(2);
+% set(gca, 'Position', pos)
 axis([-inf inf -inf 0.5])
 ax = gca;
 set(ax,'YTick',[0,0.2,0.4]);
 hold off
 
-figure(19)
-plot(time(vis_start:vis_end)*1e6,I(vis_start:vis_end))
+figure(22)
+plot(I)
 title('Intensity of oscillation')
 
-figure(20)
+figure(23)
 plot(I.*f)
 
-
-
-
-
+figure(24)
+plot(time(vis_start:vis_end-1)*1e6,err_dmd)
+title('err dmd')
+xlabel('time [us]')
