@@ -20,13 +20,13 @@ if SaveLocal == 1
     save(name); % Save workspace to a local file
 end
 
-Animate_and_save = 0;
+Animate_and_save = 1;
 % ======================================================================
 % Visualization parameters
 % ======================================================================
 if Animate_and_save == 1
 % Starting and ending time parameters  62.239 for the animation
-tstart = 61.239; tend = 0; timesteps = 110;
+tstart = 60.239; tend = 70; timesteps = 0;
 
 
 % Time range of display for I_P and m1/m0
@@ -113,18 +113,23 @@ while end_cond == 0;
             streak{K} = [t_ind{ii}(L), ii];
     end
     
+    phid_loc = phid(t_ind{ii}(L),ii); % phase of the local peak
+    phid_next = phid(t_ind{ii+1}((find(t_ind{ii+1}>t_ind{ii}(L),1))),ii+1); % phase of the next location
+    
+    if  ii<10 && sum(t_ind{ii+1}>t_ind{ii}(L))>=1 ...
+            && phid(t_ind{ii}(L),ii)-30<phid(t_ind{ii+1}((find(t_ind{ii+1}>t_ind{ii}(L),1))),ii+1) ...
+            && phid(t_ind{ii+1}((find(t_ind{ii+1}>t_ind{ii}(L),1))),ii+1)<phid(t_ind{ii}(L),ii)+30
+        % You are not starting at the last array
+        % There is a future peak in the next axial array and 
+        % The future peak (If it exist) is in a range of phase angle
 
-    elseif sum(t_ind{ii+1}>t_ind{ii}(L))>=1 % There is a future peak in the next axial array
-        
-        
         t_ind_next = t_ind{ii+1}(find(t_ind{ii+1}>t_ind{ii}(L),1)); % indice of time of the next peak at the next axial array
         
         % Parameter for the streak for 2 points. [times, pos]
         
         streak{K}(K_s + 1, 1) = t_ind_next;  
         streak{K}(K_s + 1, 2) = ii + 1;
-        %     phid_loc = phid(locs{ii}(1),ii); % phase of the local peak
-        %     phid_next = phid(loc_next,ii+1); % phase of the next location
+
    
         
   
@@ -147,9 +152,11 @@ while end_cond == 0;
         K_s = 1; % number of points in the streak is restarted
     end
     ii_s
-    if ii_s == 10 % Reached the end of the arrays.
-    end_cond = 1;
-    endii
+    if ii_s == 9 && L_s == length(t_ind{ii_s}) % Reached the end of the arrays.
+    % Reachd the last peak of the array before the last array
+        end_cond = 1;
+    end
+    ii
 end
 % Streaks, line connecting consecutive peaks
 nK = K; % Total number of streaks
