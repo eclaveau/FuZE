@@ -20,22 +20,22 @@ if SaveLocal == 1
     save(name); % Save workspace to a local file
 end
 
-Animate_and_save = 1;
+Animate_and_save = 0;
 % ======================================================================
 % Visualization parameters
 % ======================================================================
 if Animate_and_save == 1
-% Starting and ending time parameters  62.239 for the animation
-tstart = 60.239; tend = 70; timesteps = 0;
-
-
-% Time range of display for I_P and m1/m0
-vis_start = find(data{1}>(max(data{1})/1.9),1,'first'); % Where to current first reach 10% of max current
-vis_end = find(data{1}>(max(data{1})/5),1,'last'); % Where the current last reach 10% of max current
-
-% Animation of magnetic field
-[m1, phi, m0, b_th180, t_pos_start, t_pos_end, z0] = main_animation(vis_start, vis_end, shotnum, time, data, tstart, tend, timesteps);
-save([name '_data_only'], 'm1', 'phi', 'm0', 'b_th180', 't_pos_start', 't_pos_end', 'z0')
+    % Starting and ending time parameters  62.239 for the animation
+    tstart = 60.239; tend = 70; timesteps = 0;
+    
+    
+    % Time range of display for I_P and m1/m0
+    vis_start = find(data{1}>(max(data{1})/1.9),1,'first'); % Where to current first reach 10% of max current
+    vis_end = find(data{1}>(max(data{1})/5),1,'last'); % Where the current last reach 10% of max current
+    
+    % Animation of magnetic field
+    [m1, phi, m0, b_th180, t_pos_start, t_pos_end, z0] = main_animation(vis_start, vis_end, shotnum, time, data, tstart, tend, timesteps);
+    save([name '_data_only'], 'm1', 'phi', 'm0', 'b_th180', 't_pos_start', 't_pos_end', 'z0')
 else
     load([name '_data_only'])
 end
@@ -72,7 +72,7 @@ plot(m1m0(:,10),'.-b')
 legend('p5', 'p10', 'p15', 'p20', 'p25', 'p30', 'p35', 'p40', 'p45')
 
 
-phid = rad2deg(phi);
+phid = rad2deg(phi) + 180; % angle in degree from 0 to 360
 figure(5)
 plot(phid(:,2),'r')
 hold on
@@ -106,54 +106,64 @@ K_s = 1; % Number of points in the streak.
 L = 1; % Peak number at one array
 ii = 1; % Z location
 end_cond = 0; % Condition to end looking for peaks.
+s = 0; % Streak condition: If a streak is present, it is 1, if not, it is 0.
 while end_cond == 0;
+    s = 0;
     if K_s == 1 % First point in the streak
-            L_s = L; % Initial peak that you started
-            ii_s = ii; % Initial array that you started from
-            streak{K} = [t_ind{ii}(L), ii];
+        L_s = L; % Initial peak that you started
+        ii_s = ii; % Initial array that you started from
+        streak{K} = [t_ind{ii}(L), ii];
     end
-    
-    phid_loc = phid(t_ind{ii}(L),ii); % phase of the local peak
-    phid_next = phid(t_ind{ii+1}((find(t_ind{ii+1}>t_ind{ii}(L),1))),ii+1); % phase of the next location
-    
-    if  ii<10 && sum(t_ind{ii+1}>t_ind{ii}(L))>=1 ...
-            && phid(t_ind{ii}(L),ii)-30<phid(t_ind{ii+1}((find(t_ind{ii+1}>t_ind{ii}(L),1))),ii+1) ...
-            && phid(t_ind{ii+1}((find(t_ind{ii+1}>t_ind{ii}(L),1))),ii+1)<phid(t_ind{ii}(L),ii)+30
-        % You are not starting at the last array
-        % There is a future peak in the next axial array and 
-        % The future peak (If it exist) is in a range of phase angle
-
-        t_ind_next = t_ind{ii+1}(find(t_ind{ii+1}>t_ind{ii}(L),1)); % indice of time of the next peak at the next axial array
-        
-        % Parameter for the streak for 2 points. [times, pos]
-        
-        streak{K}(K_s + 1, 1) = t_ind_next;  
-        streak{K}(K_s + 1, 2) = ii + 1;
-
    
+    if  ii<10 && sum(t_ind{ii+1}>t_ind{ii}(L))>=1  
+        % You are not starting at the last array
+        % There is a future peak in the next axial array.
         
-  
-        %     if phid_loc-30<phid_next && phid_next<phid_loc+30 % Range of phase of the two peak
-        %     end
-        %     L = L + 1; % Look for the next peak in the same array.
-       
-        L = find(t_ind{ii+1}>t_ind{ii}(L),1); % Position at which the next point is
-        ii = ii + 1; % Look at the next array
-        K_s = K_s + 1; % Number of points in the streak.
-    else % No future peaks
-        if L_s == length(t_ind{ii_s}) % If you are at the last peak of that array.
-            ii = ii_s+1; % look from the next axial array.
-            L = 1; % First point of the new array
-        else % Else look for the next peak.
-            L = L_s + 1; % Next peak
-            ii = ii_s; % Initial position where you started
+        phi_loc = phi(t_ind{ii}(L),ii); % phase of the local peak
+        phi_next = phi(t_ind{ii+1}((find(t_ind{ii+1}>t_ind{ii}(L),1))),ii+1); % phase of the next location
+        
+        if abs(angdiff(phi_loc,phi_next))<=
+        %&& phid(t_ind{ii}(L),ii)-30<phid(t_ind{ii+1}((find(t_ind{ii+1} ...
+        %&& phid(t_ind{ii+1}((find(t_ind{ii+1}<phid(t_ind{ii}(L),ii)+30
         end
-        K = K + 1; % New streak
-        K_s = 1; % number of points in the streak is restarted
+        % The future peak (If it exist) is in a range of phase angle
+        s = 1; % There is a streak    
+     % No future peaks
+
     end
+   
+    switch s
+        case 0 % There is no streak
+            if L_s == length(t_ind{ii_s}) % If you are at the last peak of that array.
+                ii = ii_s+1; % look from the next axial array.
+                L = 1; % First point of the new array
+            else % Else look for the next peak.
+                L = L_s + 1; % Next peak
+                ii = ii_s; % Initial position where you started
+            end
+            K = K + 1; % New streak
+            K_s = 1; % number of points in the streak is restarted
+            
+        case 1 % There is a streak
+            t_ind_next = t_ind{ii+1}(find(t_ind{ii+1}>t_ind{ii}(L),1)); % indice of time of the next peak at the next axial array
+            
+            % Parameter for the streak for 2 points. [times, pos]
+            
+            streak{K}(K_s + 1, 1) = t_ind_next;
+            streak{K}(K_s + 1, 2) = ii + 1;
+
+            %     if phid_loc-30<phid_next && phid_next<phid_loc+30 % Range of phase of the two peak
+            %     end
+            %     L = L + 1; % Look for the next peak in the same array.
+            
+            L = find(t_ind{ii+1}>t_ind{ii}(L),1); % Position at which the next point is
+            ii = ii + 1; % Look at the next array
+            K_s = K_s + 1; % Number of points in the streak.
+    end
+    
     ii_s
     if ii_s == 9 && L_s == length(t_ind{ii_s}) % Reached the end of the arrays.
-    % Reachd the last peak of the array before the last array
+        % Reachd the last peak of the array before the last array
         end_cond = 1;
     end
     ii
