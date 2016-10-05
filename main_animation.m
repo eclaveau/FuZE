@@ -128,12 +128,13 @@ hold off
 % Final figure parameters
 ax=subplot(16,8,[57 128]);
 [cont, hc] = contourf([], [], []);
-axis([-4 49 -40 360])
+axis([-4 49 -40 Inf])
 xlabel('z [cm]')
 ylabel(['\theta [' 176 ']'])
 caxis([-1 1])
 range = -1:.1:1;
-ax.YTick = [0 45 90 135 180 225 270 315];
+ax.YTick =      [0 45 90 135 180 225 270 315 360 405 450];
+ax.YTickLabel = [0 45 90 135 180 225 270 315 0 45 90];
 colorbar
 colormap('jet')
 grid on
